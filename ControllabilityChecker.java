@@ -127,7 +127,7 @@ public class ControllabilityChecker extends ModelChecker
     ArrayList<Long> stateSpace = new ArrayList<Long>();
     ArrayList<ArrayList<Long>> Qspace = new ArrayList<ArrayList<Long>>();
     // Index of the next unvisited item
-    Long unvisited = 0L;
+    int unvisited = 0;
 
     //Getting the automata into an order where plants occur first, then specs, properties are discarded
     Set<AutomatonProxy> autos = model.getAutomata();
@@ -239,81 +239,104 @@ public class ControllabilityChecker extends ModelChecker
     //long rtuple = 0;
     String sTuple;
     Set<EventProxy> alphabet = model.getEvents();
-    // Add initial tuple to statespace
-    stateSpace.add(initialTuple);
 
-    // Get automata into managable array
-    //AutomatonProxy[] aps = new AutomatonProxy[model.getAutomata().size()];
-    // Get states into accessible list
-    //StateProxy[] sps;
-    // Tempory state variable
+    // Tempory state variables
     StateProxy currState;
     StateProxy nextState;
     // While there are unvisited tuples
     while(unvisited >= 0){
-      //System.out.println("Checking tuple number " + unvisited);
-      Tuple = Qspace.get(Math.toIntExact(unvisited));
-      //tuple = stateSpace.get(Math.toIntExact(unvisited));
-      //System.out.println("StateSpace size: " + stateSpace.size());
-      //System.out.println("Tuple: " + tuple);
-      //Expanding the tuple
-      //String binTuple = Long.toBinaryString(tuple);
-      //System.out.println("Binary Tuple: " + binTuple);
+      if(unvisited % 10000 == 0) System.out.println("Checking tuple number " + unvisited);
+      Tuple = Qspace.get(unvisited);
       // Mark this tuple as visited
       unvisited ++;
+
+      //Synchronous products and Controllability
       for (EventProxy event : model.getEvents()){
         EventKind ek = event.getKind();
-        for (int i = 0; i < aps.size(); i++){
-          //Shifting sets into arrays - easier to work with due to index access
-          //Set<AutomatonProxy> autos = model.getAutomata();
-          //aps = autos.toArray(aps);
-          Set<StateProxy> states = aps.get(i).getStates();
-          sps = new StateProxy[states.size()];
-          sps = states.toArray(sps);
 
-          //System.out.println("States size " + states.size());
+        if (ek == EventKind.UNCONTROLLABLE){
+          for (int i = 0; i < aps.size(); i++){
+            //Shifting sets into arrays - easier to work with due to index access
+            //Set<AutomatonProxy> autos = model.getAutomata();
+            //aps = autos.toArray(aps);
+            Set<StateProxy> states = aps.get(i).getStates();
+            sps = new StateProxy[states.size()];
+            sps = states.toArray(sps);
 
-          //currState = getState(i, sps, bitsList, binTuple);
-          currState = sps[Math.toIntExact(Tuple.get(i))];
-          nextState = findSuccessorState(aps.get(i), currState, event);
+            //System.out.println("States size " + states.size());
 
-          if (nextState == currState){//SELF LOOP DO NOTHING
-            //System.out.println("Self loop case");
-          }
-          else if (nextState != null){//ADD TUPLE TO STATESPACE
-            System.out.println("Transition exists");
-            //rtuple = packTuple(i, sps, bitsList, binTuple, nextState);
-            //if (!stateSpace.contains(rtuple)){
-            //  stateSpace.add(rtuple);
-              //System.out.println("Adding "+rtuple+" to StateSpace");
-            //}
-            rtuple = Tuple;
-            int index = 0;
-            for (int n = 0; n < sps.length; n++){
-              if (sps[n] == nextState){index = n; n = sps.length;}
+            //currState = getState(i, sps, bitsList, binTuple);
+            currState = sps[Math.toIntExact(Tuple.get(i))];
+            nextState = findSuccessorState(aps.get(i), currState, event);
+
+            if (nextState == currState){//SELF LOOP DO NOTHING
+              //System.out.println("Self loop case");
             }
-            rtuple.set(i, (long) index);
-            if (!Qspace.contains(rtuple)){Qspace.add(rtuple);}
-          }
-          else if (ek == EventKind.UNCONTROLLABLE && aps.get(i).getKind() == ComponentKind.SPEC){
-            //UNCONTROLLABLE SO JUMP TO COUNTEREXAMPLE
-            //System.out.println("Uncontrollable");
+            else if (nextState != null){//ADD TUPLE TO STATESPACE
+              //System.out.println("Transition exists");
+              rtuple = Tuple;
 
-            // Try to compute a counterexample ...
-            // This is not yet implemented and should only be done if the model is
-            // not controllable, but never mind ...
-            mCounterExample = computeCounterExample();
+              ArrayList<StateProxy> spsa = new ArrayList<StateProxy>();
+              for(StateProxy sp : sps){
+                spsa.add(sp);
+              }
 
-            return false;
-          }
-          else{
-            //Event disabled, jump to next event
-            //System.out.println("Next event");
+              spsa.indexOf(nextState);
+              //System.out.println("next index: " + spsa.indexOf(nextState) + " current index: "+ spsa.indexOf(currState));
+              //System.out.println("B set: " + rtuple);
+              rtuple.set(i, (long) spsa.indexOf(nextState));
+              //System.out.println("A set: " + rtuple);
+
+              boolean cont = false;
+              boolean diff = false;
+              int c =0;
+
+              for (int u = 0; u < Qspace.size(); u++){
+                for (Long l : rtuple){
+                  c = 0;
+                  if (l != Qspace.get(u).get(c)){
+                    diff = true;
+                    c++;
+                    //System.out.println("Tuples diff");
+                    break;
+                  }
+                }
+                if (!diff){
+                  cont = true;
+                  break;
+                }
+                //else {System.out.println("New Tupple");}
+              }
+
+              if (!cont){//!Qspace.contains(rtuple)){
+                Qspace.add(rtuple);
+                //System.out.println("adding tuple to statespace");
+              }
+              //else{System.out.println("tuple already exists");}
+
+              if(Qspace.size() % 10000 == 0)System.out.println("Number of tuples: " + Qspace.size());
+            }
+            else if (aps.get(i).getKind() == ComponentKind.SPEC){
+              //UNCONTROLLABLE SO JUMP TO COUNTEREXAMPLE
+              //System.out.println("Uncontrollable");
+
+              // Try to compute a counterexample ...
+              // This is not yet implemented and should only be done if the model is
+              // not controllable, but never mind ...
+              mCounterExample = computeCounterExample();
+
+              return false;
+            }
+            else{
+              //Event disabled by plant, Satisfies controllability condition for tuple, jump to next event
+              //System.out.println("Next event");
+            }
           }
         }
+        //ELSE event is controllable so not relevant to automata controllability according to controllability condition
       }
 
-      if (unvisited == stateSpace.size()){unvisited = -1L;}
+      if (unvisited == Qspace.size()){unvisited = -1;}
     }
 
     //System.out.println("Total States = " + totalStates);

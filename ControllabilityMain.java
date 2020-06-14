@@ -143,9 +143,9 @@ public class ControllabilityMain
         } else {
           System.out.println("NOT controllable");
           System.out.println("Counterexample:");
-          final SafetyCounterExampleProxy counterex =
-            checker.getCounterExample();
-          System.out.println(counterex.toString());
+          //final SafetyCounterExampleProxy counterex =
+            //checker.getCounterExample();
+          //System.out.println(counterex.toString());
         }
       }
 
