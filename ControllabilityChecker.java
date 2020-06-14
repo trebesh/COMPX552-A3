@@ -235,7 +235,7 @@ public class ControllabilityChecker extends ModelChecker
 
     //long tuple = 0;
     Tuple = new ArrayList<Long>();
-    ArrayList<Long> rtuple = new ArrayList<Long>();
+    ArrayList<Long> rtuple;
     //long rtuple = 0;
     String sTuple;
     Set<EventProxy> alphabet = model.getEvents();
@@ -245,8 +245,9 @@ public class ControllabilityChecker extends ModelChecker
     StateProxy nextState;
     // While there are unvisited tuples
     while(unvisited >= 0){
-      if(unvisited % 10000 == 0) System.out.println("Checking tuple number " + unvisited);
+      //if(unvisited % 10000 == 0) System.out.println("Checking tuple number " + unvisited);
       Tuple = Qspace.get(unvisited);
+      //if(unvisited == 0) System.out.println("Initial Tuple: "+ Tuple);
       // Mark this tuple as visited
       unvisited ++;
 
@@ -274,7 +275,7 @@ public class ControllabilityChecker extends ModelChecker
             }
             else if (nextState != null){//ADD TUPLE TO STATESPACE
               //System.out.println("Transition exists");
-              rtuple = Tuple;
+              rtuple = new ArrayList<Long>(Tuple);
 
               ArrayList<StateProxy> spsa = new ArrayList<StateProxy>();
               for(StateProxy sp : sps){
@@ -309,21 +310,27 @@ public class ControllabilityChecker extends ModelChecker
               }
 
               if (!cont){//!Qspace.contains(rtuple)){
-                Qspace.add(rtuple);
-                //System.out.println("adding tuple to statespace");
+                //Qspace.add(rtuple);
+
+                Qspace.add(null);
+                Qspace.set(Qspace.size()-1, rtuple);
+
+                //System.out.println("adding tuple to statespace:" + rtuple);
+                //System.out.println("Statespace so far: " + Qspace);
               }
               //else{System.out.println("tuple already exists");}
 
-              if(Qspace.size() % 10000 == 0)System.out.println("Number of tuples: " + Qspace.size());
+              //if(Qspace.size() % 10000 == 0)System.out.println("Number of tuples: " + Qspace.size());
             }
             else if (aps.get(i).getKind() == ComponentKind.SPEC){
+              //System.out.println("Statespace: " + Qspace);
               //UNCONTROLLABLE SO JUMP TO COUNTEREXAMPLE
               //System.out.println("Uncontrollable");
 
               // Try to compute a counterexample ...
               // This is not yet implemented and should only be done if the model is
               // not controllable, but never mind ...
-              mCounterExample = computeCounterExample();
+              //mCounterExample = computeCounterExample(model, Qspace, sps, aps.get(i), aps);
 
               return false;
             }
@@ -526,24 +533,91 @@ public class ControllabilityChecker extends ModelChecker
    * counterexample are still available.
    * @return The computed counterexample.
    */
-  private SafetyCounterExampleProxy computeCounterExample()
-  {
-    // The following creates a trace that consists of all the events in
-    // the input model.
-    // This code is only here to demonstrate the use of the interfaces.
-    // IT DOES NOT GIVE A CORRECT COUNTEREXAMPLE!
-
+  private SafetyCounterExampleProxy computeCounterExample(ProductDESProxy model, ArrayList<ArrayList<Long>> tuples, StateProxy[] sps, AutomatonProxy aut, ArrayList<AutomatonProxy> aps) {
     final ProductDESProxyFactory desFactory = getFactory();
     final ProductDESProxy des = getModel();
     final String desName = des.getName();
     final String traceName = desName + ":uncontrollable";
     final Collection<EventProxy> events = des.getEvents();
     final List<EventProxy> eventList = new LinkedList<>();
+
+    ArrayList<Long> target = tuples.get(tuples.size() - 1);
+    ArrayList<Long> curr = new ArrayList<Long>();
+    ArrayList<Long> nexttup = new ArrayList<Long>();
+    ArrayList<ArrayList<Long>> tupleTrack = new ArrayList<ArrayList<Long>>();
+    ArrayList<EventProxy> eventTrack = new ArrayList<EventProxy>();
+    int autIndex = aps.indexOf(aut);
+    StateProxy currState;
+    StateProxy nextState;
+    ArrayList<StateProxy> spsa = new ArrayList<StateProxy>();
+    for (StateProxy s : sps) {
+      spsa.add(s);
+    }
+
+    System.out.println("All Tuples: " + tuples);
+
+    long index = 0;
+
+    while (curr != tuples.get(0)){
+      System.out.println("Tuples size: " + tuples.size() + " Target index: " + tuples.indexOf(target) + " " + (tuples.size() - 1));
+      if(index == tuples.size() -1){
+        tupleTrack.add(curr);
+        target = curr;
+        curr = tuples.get(Math.toIntExact(index));
+        break;
+      }
+      System.out.println("Not Initial yet...");
+      while (index < tuples.size() - 1) {
+
+        curr = tuples.get(Math.toIntExact(index));
+        System.out.println("next tuple");
+        System.out.println(curr);
+        System.out.println(target);
+        // Mark this tuple as visited
+        index++;
+
+        for (EventProxy event : model.getEvents()) {
+          EventKind ek = event.getKind();
+
+          System.out.println("Checking events...");
+
+          if (ek == EventKind.UNCONTROLLABLE) {
+            System.out.println(curr);
+            System.out.println(target);
+
+            currState = sps[Math.toIntExact(curr.get(autIndex))];
+            nextState = findSuccessorState(aut, currState, event);
+            nexttup = curr;
+            nexttup.set(autIndex, (long) spsa.indexOf(nextState));
+
+            if (curr == nexttup){}//SELF LOOP
+            else if (nexttup.equals(target)){
+              tupleTrack.add(curr);
+              eventTrack.add(event);
+              target = curr;
+              index = tuples.indexOf(target);
+              break;
+            }
+          }
+          //ELSE event is controllable so not relevant to automata controllability according to controllability condition
+        }
+        }
+      }
+
+    System.out.println("Tuple Track; " + tupleTrack);
+    System.out.println("event track: " + eventTrack);
+
+
+
+    // The following creates a trace that consists of all the events in
+    // the input model.
+    // This code is only here to demonstrate the use of the interfaces.
+    // IT DOES NOT GIVE A CORRECT COUNTEREXAMPLE!
     for (final EventProxy event : events) {
       eventList.add(event);
     }
     return
-            desFactory.createSafetyCounterExampleProxy(traceName, des, eventList);
+            desFactory.createSafetyCounterExampleProxy(traceName, model, eventTrack);
   }
 
 
