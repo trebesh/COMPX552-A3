@@ -114,85 +114,53 @@ public class ControllabilityChecker extends ModelChecker
 
     // Arraylist to hold the number of bits required to pack each automaton's space
     //  index is in the order the automata appear in the for search
-    ArrayList<Long> bitsList = new ArrayList<Long>();
+    //  Redundant wih long arraylist tuples
+    //ArrayList<Long> bitsList = new ArrayList<Long>();
 
     // tuples
     ArrayList<Long> Tuple = new ArrayList<Long>();
-    long initialTuple = 0;
-    // A string holding the binary representation of the tuple
-    String tupleString = "";
-    //The total number of states in the model
-    int totalStates = 0;
     // The statespace
-    ArrayList<Long> stateSpace = new ArrayList<Long>();
     ArrayList<ArrayList<Long>> Qspace = new ArrayList<ArrayList<Long>>();
     // Index of the next unvisited item
     int unvisited = 0;
 
-    //Getting the automata into an order where plants occur first, then specs, properties are discarded
+    // ORDER AUTOMATA -------------------------------------------------------------------------------------
+    //  Getting the automata into an order where plants occur first, then specs, properties are discarded
     Set<AutomatonProxy> autos = model.getAutomata();
     AutomatonProxy[] temp = new AutomatonProxy[model.getAutomata().size()];
     temp = autos.toArray(temp);
-    //AutomatonProxy[] aps = new AutomatonProxy[model.getAutomata().size()];
 
     ArrayList<AutomatonProxy> aps = new ArrayList<AutomatonProxy>();
     StateProxy[] sps;
 
-    //int upto = 0;
     Boolean plants = true;
     for (int i = 0; i < temp.length; i++){
-      //System.out.println("i " + i + " kind " + temp[i].getKind() + " plants " + plants);
-      //System.out.println("temp " + temp[i].getName());
       if (plants && temp[i].getKind()==ComponentKind.PLANT){
-        //System.out.println("i: " + i + " plants: "+ plants );
-        //System.out.println("add plant");
-        //apsl.add(temp[i]);
         aps.add (temp[i]);
-        //upto++;
         if (i + 1 == autos.size()){
           i = -1;
           plants = false;
         }
       }
       else if (!plants && temp[i].getKind()==ComponentKind.SPEC){
-        //System.out.println("i: " + i + " plants: "+ plants );
-        //System.out.println("add spec");
-        //aps[upto] = temp[i];
         aps.add(temp[i]);
-        //upto++;
         plants = false;
       }
       else if (plants && temp[i].getKind()==ComponentKind.SPEC && i + 1 == temp.length){
-        //System.out.println("i: " + i + " plants: "+ plants );
-        //System.out.println("specs now");
         i = -1;
         plants = false;
-        //System.out.println("i: " + i + " plants: "+ plants );
       }
-      //else {System.out.println("UNKNOWN CASE"); System.out.println("i: " + i + " plants: "+ plants + " type: " + temp[i].getKind());}
-      //System.out.println("i: " + i + " plants: "+ plants );
     }
 
-    //AutomatonProxy[] aps = new AutomatonProxy[apsl.size()];
-    //aps = apsl.toArray(aps);
 
-
-    // For each automaton ...
+    // INITIAL TUPLE ---------------------------------------------------------------------------------------
     for (int i = 0; i < aps.size(); i++){
-      //System.out.println("aps length: " + aps.size());
-      //System.out.println("i: " + i);
-      //System.out.println("aut " + aps.get(i).getKind());
       AutomatonProxy aut = aps.get(i);
-      //System.out.println("states in aut: " + aut.getStates().size());
-      //for (final AutomatonProxy aut : aps) {
-      // ----------------------------------------------------------------------------------------------------------
-      // Add the number of bits required to pad this automata to the array
-      bitsList.add((long) Math.floor(Math.log(aut.getStates().size()) / Math.log(2)) + 1);
 
-      //if (aut.getStates().size() == 2){ bitsList.add(1L);}
-      //else {
-      //  bitsList.add((long) Math.ceil(Math.sqrt(aut.getStates().size())));
-      //}
+      // Add the number of bits required to pad this automata to the array
+      //  functionality lost due to switch to long array representation of tuple
+      //bitsList.add((long) Math.floor(Math.log(aut.getStates().size()) / Math.log(2)) + 1);
+
       sps = new StateProxy[aut.getStates().size()];
       sps = aut.getStates().toArray(sps);
 
@@ -200,37 +168,14 @@ public class ControllabilityChecker extends ModelChecker
 
       //Put the initial states in the initial tuple
       for (int j = 0; j < sps.length; j++){
-        //System.out.println("J: " + j);
         if (sps[j].isInitial()){
-          //System.out.println("state index" + Long.toBinaryString(j));
           stateLabel = Integer.toBinaryString(j);
-          //System.out.println("statelabel: " + stateLabel);
-          //tupleString = Integer.toBinaryString(j);
           Tuple.add(Long.parseLong(stateLabel, 2));
-          //while(stateLabel.length() < bitsList.get(i)){
-          //  stateLabel = "0" + stateLabel;
-          // }
           j = sps.length;
         }
-        //tupleString = tupleString + stateLabel;
-        //totalStates ++;
       }
-
-      //initialTuple = Long.parseLong(tupleString, 2);
-
-      // --------------------------------------------------------------------------------------------------------
-      // Print what we have found
-      //System.out.println(plantOrSpec + " " + aut.getName() + " has " + count + " uncontrollable events.");
-      //System.out.println("States and padding bits:");
-      //System.out.println(aut.getStates().size() + " " + bitsList.get(bitsList.size()-1));
-
-      //System.out.println("TupleString: " + tupleString);
-      // System.out.println("InitialTuple: " + initialTuple);
     }
-    //System.out.println("Initial Tuple: " + initialTuple);
-    //System.out.println("Initial Tuple Array: " + Tuple );
 
-    //--------------------------------------------------------------------------------------------------------------------
     Qspace.add(Tuple);
 
     //long tuple = 0;
@@ -243,11 +188,13 @@ public class ControllabilityChecker extends ModelChecker
     // Tempory state variables
     StateProxy currState;
     StateProxy nextState;
+
+    // CONTROLLABILITY ---------------------------------------------------------------------------------
     // While there are unvisited tuples
     while(unvisited >= 0){
       //if(unvisited % 10000 == 0) System.out.println("Checking tuple number " + unvisited);
       Tuple = Qspace.get(unvisited);
-      //if(unvisited == 0) System.out.println("Initial Tuple: "+ Tuple);
+
       // Mark this tuple as visited
       unvisited ++;
 
@@ -257,24 +204,16 @@ public class ControllabilityChecker extends ModelChecker
 
         if (ek == EventKind.UNCONTROLLABLE){
           for (int i = 0; i < aps.size(); i++){
-            //Shifting sets into arrays - easier to work with due to index access
-            //Set<AutomatonProxy> autos = model.getAutomata();
-            //aps = autos.toArray(aps);
+            //Shifting sets into arrays - easier to work with due to index access, ordering
             Set<StateProxy> states = aps.get(i).getStates();
             sps = new StateProxy[states.size()];
             sps = states.toArray(sps);
 
-            //System.out.println("States size " + states.size());
-
-            //currState = getState(i, sps, bitsList, binTuple);
             currState = sps[Math.toIntExact(Tuple.get(i))];
             nextState = findSuccessorState(aps.get(i), currState, event);
 
-            if (nextState == currState){//SELF LOOP DO NOTHING
-              //System.out.println("Self loop case");
-            }
+            if (nextState == currState){}//SELF LOOP DO NOTHING
             else if (nextState != null){//ADD TUPLE TO STATESPACE
-              //System.out.println("Transition exists");
               rtuple = new ArrayList<Long>(Tuple);
 
               ArrayList<StateProxy> spsa = new ArrayList<StateProxy>();
@@ -283,22 +222,20 @@ public class ControllabilityChecker extends ModelChecker
               }
 
               spsa.indexOf(nextState);
-              //System.out.println("next index: " + spsa.indexOf(nextState) + " current index: "+ spsa.indexOf(currState));
-              //System.out.println("B set: " + rtuple);
               rtuple.set(i, (long) spsa.indexOf(nextState));
-              //System.out.println("A set: " + rtuple);
 
               boolean cont = false;
               boolean diff = false;
               int c =0;
 
+              // Had issues with the arraylist .contains and .equals methods producing false for matching tuples
+              //  so had to write my own checker, probably at a hit to performance time.
               for (int u = 0; u < Qspace.size(); u++){
                 for (Long l : rtuple){
                   c = 0;
                   if (l != Qspace.get(u).get(c)){
                     diff = true;
                     c++;
-                    //System.out.println("Tuples diff");
                     break;
                   }
                 }
@@ -306,38 +243,28 @@ public class ControllabilityChecker extends ModelChecker
                   cont = true;
                   break;
                 }
-                //else {System.out.println("New Tupple");}
               }
 
-              if (!cont){//!Qspace.contains(rtuple)){
-                //Qspace.add(rtuple);
+              if (!cont){
 
                 Qspace.add(null);
                 Qspace.set(Qspace.size()-1, rtuple);
-
-                //System.out.println("adding tuple to statespace:" + rtuple);
-                //System.out.println("Statespace so far: " + Qspace);
               }
-              //else{System.out.println("tuple already exists");}
 
-              //if(Qspace.size() % 10000 == 0)System.out.println("Number of tuples: " + Qspace.size());
+              if(Qspace.size() % 10000 == 0)System.out.println("Number of tuples: " + Qspace.size());
             }
             else if (aps.get(i).getKind() == ComponentKind.SPEC){
-              //System.out.println("Statespace: " + Qspace);
-              //UNCONTROLLABLE SO JUMP TO COUNTEREXAMPLE
-              //System.out.println("Uncontrollable");
 
-              // Try to compute a counterexample ...
-              // This is not yet implemented and should only be done if the model is
-              // not controllable, but never mind ...
+              //Attempt counterexample   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+              //COMMENT OUT THIS LINE FOR CONTROLLABILITY ANALYSIS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+              // UNCOMMENT for attempt at counterexample (i think its an infinite loop) !!!!!!!!!!!!!!!!!!!!!!!!!!!
+              //  May have to comment out getCounterExample call in Controllability Main to avoid error
               //mCounterExample = computeCounterExample(model, Qspace, sps, aps.get(i), aps);
+              //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
               return false;
             }
-            else{
-              //Event disabled by plant, Satisfies controllability condition for tuple, jump to next event
-              //System.out.println("Next event");
-            }
+            else{}//Event disabled by plant, Satisfies controllability condition for tuple, jump to next event
           }
         }
         //ELSE event is controllable so not relevant to automata controllability according to controllability condition
@@ -346,11 +273,6 @@ public class ControllabilityChecker extends ModelChecker
       if (unvisited == Qspace.size()){unvisited = -1;}
     }
 
-    //System.out.println("Total States = " + totalStates);
-    //System.out.println("StateSpace size: " + stateSpace.size());
-
-    // This all was no good as far as controllability checking is concerned.
-    // Let us just leave.
     return true;
   }
 
@@ -358,128 +280,11 @@ public class ControllabilityChecker extends ModelChecker
   //  Auxillary Methods
 
   // -------------------------------------------------------------------------
-
-  // Pack Tuple
-  // Returns a bitpacked tuple
-  public Long packTuple(long ai, StateProxy[] sps, ArrayList<Long> bitsList, String binTuple, StateProxy nextState){
-    //System.out.println("PACKING TUPLE...");
-    //System.out.println("Autamaton Index: " + ai + " Binary String Tuple: " + binTuple);
-    //System.out.println("Bits Packing: " + bitsList);
-
-    //System.out.println("Binary Tuple: " + binTuple);
-
-    String tuplep1 = "0";
-    String tuplep2 = "0";
-    String tuplep3 = "0";
-    String tupleString = "0";
-
-    // Finding position of state to change
-    long sIndex = 0L;
-    for (int i = 0; i < ai; i++){
-      sIndex += bitsList.get(i);
-    }
-    long eIndex = sIndex + bitsList.get((int) ai);
-    //System.out.println("Start: "+ sIndex + " End: "+ eIndex);
-
-    long numBits = 0;
-    for (int i = 0; i < bitsList.size(); i++){
-      numBits += bitsList.get(i);
-    }
-    //System.out.println("NumBits: " + numBits);
-
-    //Creating the full binary string
-    String allBits = "";
-    for (int i = 0; i < (numBits - binTuple.length()); i++){
-      allBits = allBits + "0";
-    }
-    allBits = allBits + binTuple;
-    //System.out.println("Full Tuple: "+ allBits);
-
-    //Seperating the existing tuple
-    tuplep1 = allBits.substring(0, (int)sIndex);
-    tuplep3 = allBits.substring((int) eIndex);
-
-    // Editing the tuple
-    for(int i = 0; i < sps.length; i++){
-      if (sps[i] == nextState){
-        tuplep2 = Integer.toBinaryString(i);
-
-
-        while (tuplep2.length() < bitsList.get((int)ai)){
-          tuplep2 = "0" + tuplep2;
-        }
-        i = sps.length;
-      }
-    }
-    //System.out.println("sps length: " + sps.length);
-    //System.out.println("New t2: " +tuplep2);
-
-    //System.out.println("Tuple: " + tuplep1 +" "+ tuplep2 +" "+ tuplep3);
-    //tupleString = tuplep1 + tuplep2 + tuplep3;
-    //System.out.println("tupleString> " + tupleString);
-    //System.out.println("Tuple: " + Long.parseLong(tupleString, 2));
-
-    return Long.parseLong(tupleString, 2);
-  }
-
-  // Get Autamaton State
-  // Returns the state of the automata at the given index in the tuple
-  public StateProxy getState(long aIndex, StateProxy[] sps, ArrayList<Long> bitsList, String binTuple){
-    //System.out.println("GET STATE...");
-    System.out.println("Index: " + aIndex);// " Binary String Tuple: " + binTuple);
-    System.out.println("Bits Packing: " + bitsList);
-    System.out.println("SPS size " + sps.length);
-
-    // Preparing to extract the desired state
-    long sIndex = 0L;
-    for (int i = 0; i < aIndex; i++){
-      sIndex += bitsList.get(i);
-    }
-    long eIndex = sIndex + bitsList.get((int) aIndex);
-    //System.out.println("Start: "+ sIndex + " End: "+ eIndex);
-
-    long numBits = 0;
-    for (int i = 0; i < bitsList.size(); i++){
-      numBits += bitsList.get(i);
-    }
-    //System.out.println("NumBits: " + numBits);
-
-    //Creating the full binary string
-    String allBits = "";
-    for (int i = 0; i < (numBits - binTuple.length()); i++){
-      allBits = allBits + "0";
-    }
-    allBits = allBits + binTuple;
-    System.out.println("Full Tuple: "+ allBits);
-
-    // Extracting he desired state
-    String stateString = allBits.substring((int) sIndex, (int) eIndex);
-    if(sIndex == eIndex) {
-      //System.out.println("start and end equal");
-      //System.out.println("bitslist at aIndex " + bitsList.get((int) aIndex));
-      for (int i = 0; i < bitsList.get((int) aIndex); i++) {
-        char c = allBits.charAt((int) sIndex + i);
-        stateString = stateString + Character.toString(c);
-        System.out.println("c: " + c);
-      }
-    }
-    System.out.println("State Binary String: "+ stateString);
-    long stateIndex = Long.parseLong(stateString, 2);
-    //System.out.println("State Index: "+ stateIndex);
-
-    return sps[(int)stateIndex];
-  }
-
   // Successor State
   // Returns the state which follows the current state after a given event
   //  If the event is not allowed, return null
   public StateProxy findSuccessorState(AutomatonProxy aut, StateProxy state, EventProxy event){
-    //System.out.println("FINDING SUCCESSOR...");
-
     Set<EventProxy> alphabet = aut.getEvents();
-
-    //System.out.println("Getting Successor For... AUT: " + aut +" State: "+ state +" Event: "+ event );
-
     // Implicit Self loop case
     if (!alphabet.contains(event)){
       return state;
@@ -494,10 +299,6 @@ public class ControllabilityChecker extends ModelChecker
     //Otherwise the automaton doesn't allow the event
     return null;
   }
-
-  // ----------------------------------------------------------------------
-  // Enumerate States
-  // Enumerates the states belonging to the automata
 
   //#########################################################################
   //# Simple Access Methods
@@ -533,7 +334,10 @@ public class ControllabilityChecker extends ModelChecker
    * counterexample are still available.
    * @return The computed counterexample.
    */
-  private SafetyCounterExampleProxy computeCounterExample(ProductDESProxy model, ArrayList<ArrayList<Long>> tuples, StateProxy[] sps, AutomatonProxy aut, ArrayList<AutomatonProxy> aps) {
+  // ATTEMPTED BUT NOT WORKING
+  //  Print statements left in as still in development
+  //  Gets stuck in infinite loop
+  private synchronized SafetyCounterExampleProxy computeCounterExample(ProductDESProxy model, ArrayList<ArrayList<Long>> tuples, StateProxy[] sps, AutomatonProxy aut, ArrayList<AutomatonProxy> aps) {
     final ProductDESProxyFactory desFactory = getFactory();
     final ProductDESProxy des = getModel();
     final String desName = des.getName();
@@ -553,55 +357,72 @@ public class ControllabilityChecker extends ModelChecker
     for (StateProxy s : sps) {
       spsa.add(s);
     }
+    boolean hit = false;
 
     System.out.println("All Tuples: " + tuples);
+    System.out.println("Tuples size: " + tuples.size() + " Target index: " + tuples.indexOf(target) + " " + (tuples.size() - 1));
 
     long index = 0;
 
+    System.out.println("Target: " + target);
+
     while (curr != tuples.get(0)){
-      System.out.println("Tuples size: " + tuples.size() + " Target index: " + tuples.indexOf(target) + " " + (tuples.size() - 1));
-      if(index == tuples.size() -1){
+      //System.out.println("curr " + curr + " tuples 0 " + tuples.get(0));
+      hit = false;
+      //System.out.println("Tuples size: " + tuples.size() + " Target index: " + tuples.indexOf(target) + " " + (tuples.size() - 1));
+      if(0 == tuples.size() -1){
         tupleTrack.add(curr);
-        target = curr;
+        //target = curr;
+        for (Long s : curr) {
+          target.add(s);
+        }
         curr = tuples.get(Math.toIntExact(index));
         break;
       }
-      System.out.println("Not Initial yet...");
-      while (index < tuples.size() - 1) {
-
-        curr = tuples.get(Math.toIntExact(index));
-        System.out.println("next tuple");
-        System.out.println(curr);
-        System.out.println(target);
+      //System.out.println("Not Initial yet...");
+      //while (index < tuples.size() - 1) {
+      for (ArrayList<Long> tup : tuples){
+        //System.out.println(curr);
+        curr = tup;//tuples.get(Math.toIntExact(index));
+        //System.out.println("new current, target");
+        //System.out.println(curr);
+        //System.out.println(target);
         // Mark this tuple as visited
         index++;
 
         for (EventProxy event : model.getEvents()) {
           EventKind ek = event.getKind();
+          nexttup = new ArrayList<Long>();
 
-          System.out.println("Checking events...");
+          //System.out.println("Checking events...");
 
           if (ek == EventKind.UNCONTROLLABLE) {
-            System.out.println(curr);
-            System.out.println(target);
+            //System.out.println("valid event");
+//            System.out.println(curr);
+//            System.out.println(target);
 
             currState = sps[Math.toIntExact(curr.get(autIndex))];
             nextState = findSuccessorState(aut, currState, event);
-            nexttup = curr;
+            for (Long l : curr) {
+              nexttup.add(l);
+            }
             nexttup.set(autIndex, (long) spsa.indexOf(nextState));
 
-            if (curr == nexttup){}//SELF LOOP
-            else if (nexttup.equals(target)){
+            if (nexttup.equals(target)){
+              //System.out.println("Target reached");
               tupleTrack.add(curr);
               eventTrack.add(event);
-              target = curr;
+              //target = curr;
+              hit = true;
               index = tuples.indexOf(target);
               break;
             }
+            //else System.out.println("else? " + curr + " " + nexttup);
           }
           //ELSE event is controllable so not relevant to automata controllability according to controllability condition
+        } if (hit) break;
         }
-        }
+      //System.out.println("curr: " + curr + " initial: " + tuples.get(0));
       }
 
     System.out.println("Tuple Track; " + tupleTrack);
@@ -617,7 +438,9 @@ public class ControllabilityChecker extends ModelChecker
       eventList.add(event);
     }
     return
-            desFactory.createSafetyCounterExampleProxy(traceName, model, eventTrack);
+            desFactory.createSafetyCounterExampleProxy(traceName, model, eventList);
+            // SHOULD RETURN when implementation works
+            //   desFactory.createSafetyCounterExampleProxy(traceName, model, eventTrace);
   }
 
 
